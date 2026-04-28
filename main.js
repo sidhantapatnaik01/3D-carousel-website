@@ -527,3 +527,25 @@ document.querySelectorAll('a[href^="#"]').forEach(anchor => {
     }
   });
 });
+
+// ── MODEL CARD CLICK → SERVICES ───────────────────────────
+// Cards have hover lift/border which implies interactivity — wire click to services
+const servicesSection = document.getElementById('services-section');
+document.querySelectorAll('.model-card').forEach(card => {
+  card.style.cursor = 'pointer';
+  card.setAttribute('title', 'View our services');
+  card.addEventListener('click', () => {
+    if (servicesSection) servicesSection.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// ── BACK TO TOP ────────────────────────────────────────────
+const backToTop = document.getElementById('back-to-top');
+if (backToTop) {
+  backToTop.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+
+  window.addEventListener('scroll', () => {
+    const heroHeight = (scrollDriver ? scrollDriver.offsetHeight : 0) - window.innerHeight;
+    backToTop.classList.toggle('visible', window.scrollY > heroHeight + 200);
+  }, { passive: true });
+}
