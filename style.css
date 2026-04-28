@@ -1657,8 +1657,12 @@ a.contact-value:hover {
 
 @media (max-width: 768px) {
   #wm-mask {
-    right: 88px;
-    width: 180px;
-    height: 36px;
+    /* Full-width bottom strip on mobile — watermark position shifts
+       with canvas scaling, so cover everything left of the social dock */
+    left: 0;
+    right: 100px;   /* leaves room for the WA + IG icon buttons */
+    width: auto;
+    height: 48px;
+    bottom: 0;
   }
 }
