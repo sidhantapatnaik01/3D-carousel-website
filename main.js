@@ -23,7 +23,7 @@ const frameCanvas   = document.getElementById('frame-canvas');
 const ctx           = frameCanvas.getContext('2d');
 
 // ── DEVICE DETECTION ─────────────────────────────────────
-const isMobile = window.matchMedia('(max-width: 900px)').matches;
+const isMobile = window.matchMedia('(max-width: 700px)').matches;
 
 // ── CANVAS RESIZE ─────────────────────────────────────────
 function resizeFrameCanvas() {
@@ -99,7 +99,7 @@ if (isMobile) {
       entries.forEach(e => {
         if (e.isIntersecting) { e.target.classList.add('in-view'); cardObs.unobserve(e.target); }
       });
-    }, { threshold: 0.08 });
+    }, { threshold: 0.01 }); // Very low threshold for mobile responsiveness
     svcCards.forEach(c => cardObs.observe(c));
   }
 
@@ -109,7 +109,7 @@ if (isMobile) {
       entries.forEach(e => {
         if (e.isIntersecting) { e.target.classList.add('in-view'); galObs.unobserve(e.target); }
       });
-    }, { threshold: 0.08 });
+    }, { threshold: 0.01 }); // Very low threshold for mobile responsiveness
     galleryCards.forEach(c => galObs.observe(c));
   }
 })();
