@@ -7,9 +7,10 @@ import { CSS3DRenderer, CSS3DObject } from 'three/addons/renderers/CSS3DRenderer
 const TOTAL_FRAMES   = 121;
 const CARD_RADIUS    = 560;   // orbit radius in CSS3D px units
 const PARTICLE_COUNT = 2200;
-const LERP           = 0.072; // scroll momentum — lower = more lag / smoother feel
+const LERP           = 0.14;  // scroll momentum — higher = snappier response, less lag
 const CARD_VISIBLE_START = 0.18;
 const CARD_VISIBLE_END   = 0.82;
+const SCROLL_EPSILON = 0.15;  // px — skip per-frame scroll-driven work below this delta
 
 // ── DOM REFS ─────────────────────────────────────────────
 const loadOverlay  = document.getElementById('load-overlay');
@@ -41,23 +42,31 @@ stageDots.forEach(dot => {
   dot.appendChild(label);
 });
 
-// ── FRAME PRELOAD ─────────────────────────────────────────
-const frames = Array.from({ length: TOTAL_FRAMES }, (_, i) => {
-  const img = new Image();
-  img.src = `frames/${String(i + 1).padStart(5, '0')}.jpg`;
-  return img;
-});
-
+// ── FRAME PRELOAD (decode → ImageBitmap so drawFrame is a pure GPU blit) ──
+const frames = new Array(TOTAL_FRAMES); // ImageBitmap | undefined
+const fallbackImgs = new Array(TOTAL_FRAMES); // <img> kept as fallback if createImageBitmap fails
 let loadedCount = 0;
 let minTimePassed = false;
 const BOOT_FRAMES = 30; // dismiss loader after first 30 frames ready
 
-frames.forEach(img => {
-  img.onload = () => {
+for (let i = 0; i < TOTAL_FRAMES; i++) {
+  const img = new Image();
+  img.src = `frames/${String(i + 1).padStart(5, '0')}.jpg`;
+  fallbackImgs[i] = img;
+  const onReady = () => {
     loadedCount++;
     if (loadedCount >= BOOT_FRAMES && minTimePassed) dismissLoader();
   };
-});
+  // Prefer createImageBitmap (fully decoded, blits instantly). Fall back to <img>.
+  if (typeof createImageBitmap === 'function') {
+    img.decode()
+      .then(() => createImageBitmap(img))
+      .then(bmp => { frames[i] = bmp; onReady(); })
+      .catch(() => { onReady(); /* drawFrame will use fallbackImgs[i] */ });
+  } else {
+    img.onload = onReady;
+  }
+}
 
 setTimeout(() => {
   minTimePassed = true;
@@ -72,12 +81,21 @@ function dismissLoader() {
 
 // ── DRAW FRAME ────────────────────────────────────────────
 function drawFrame(idx) {
-  const img = frames[Math.max(0, Math.min(idx, TOTAL_FRAMES - 1))];
-  if (!img.complete || !img.naturalWidth) return;
+  const i = Math.max(0, Math.min(idx, TOTAL_FRAMES - 1));
+  const bmp = frames[i];
   const cw = frameCanvas.width, ch = frameCanvas.height;
+  if (bmp) {
+    const scale = Math.min(cw / bmp.width, ch / bmp.height);
+    const w = bmp.width * scale, h = bmp.height * scale;
+    ctx.clearRect(0, 0, cw, ch);
+    ctx.drawImage(bmp, (cw - w) / 2, (ch - h) / 2, w, h);
+    return;
+  }
+  // Fallback: <img> not yet promoted to bitmap (or createImageBitmap unsupported)
+  const img = fallbackImgs[i];
+  if (!img || !img.complete || !img.naturalWidth) return;
   const scale = Math.min(cw / img.naturalWidth, ch / img.naturalHeight);
-  const w = img.naturalWidth  * scale;
-  const h = img.naturalHeight * scale;
+  const w = img.naturalWidth * scale, h = img.naturalHeight * scale;
   ctx.clearRect(0, 0, cw, ch);
   ctx.drawImage(img, (cw - w) / 2, (ch - h) / 2, w, h);
 }
@@ -239,6 +257,8 @@ function initDesktop() {
     return 1;
   }
 
+  const cardActiveState = new Array(N).fill(false);
+
   function updateCarousel(progress) {
     const env = scrollEnvelope(progress);
     const groupAngle = -progress * (Math.PI * 2 * (N - 1) / N);
@@ -262,7 +282,11 @@ function initDesktop() {
       const eased = t * t * (3 - 2 * t); // smoothstep
       el.style.opacity = String(eased * env);
 
-      el.classList.toggle('card-active', depth > 0.82 && env > 0.5);
+      const active = depth > 0.82 && env > 0.5;
+      if (cardActiveState[i] !== active) {
+        el.classList.toggle('card-active', active);
+        cardActiveState[i] = active;
+      }
     });
   }
 
@@ -291,6 +315,8 @@ function initDesktop() {
   // ── SMOOTH SCROLL STATE ──────────────────────────────────
   let smoothY = 0;
   let lastDrawnFrame = -1;
+  let lastSmoothY = -1;
+  let frameCounter = 0;
 
   function getProgress() {
     const driverH = scrollDriver.offsetHeight - window.innerHeight;
@@ -304,21 +330,26 @@ function initDesktop() {
   // ── RAF LOOP ─────────────────────────────────────────────
   function tick() {
     smoothY += (window.scrollY - smoothY) * LERP;
-    const p = getProgress();
-    const targetFrame = Math.round(p * (TOTAL_FRAMES - 1));
+    frameCounter++;
 
-    // Only redraw the heavy 2D canvas when the frame index actually changes
-    if (targetFrame !== lastDrawnFrame) {
-      drawFrame(targetFrame);
-      lastDrawnFrame = targetFrame;
+    // Idle gate: skip scroll-driven DOM/scene work when smoothY hasn't moved.
+    // Camera + particles still tick — they're driven by mouse + time, not scroll.
+    if (Math.abs(smoothY - lastSmoothY) > SCROLL_EPSILON) {
+      const p = getProgress();
+      const targetFrame = Math.round(p * (TOTAL_FRAMES - 1));
+      if (targetFrame !== lastDrawnFrame) {
+        drawFrame(targetFrame);
+        lastDrawnFrame = targetFrame;
+      }
+      updateHero(p);
+      updateAnnotations(p);
+      updateProgress(p);
+      updateCarousel(p);
+      lastSmoothY = smoothY;
     }
 
-    updateHero(p);
-    updateAnnotations(p);
-    updateProgress(p);
-    updateCarousel(p);
-
-    driftParticles();
+    // Throttle particle buffer upload to every other frame — halves GPU upload cost
+    if ((frameCounter & 1) === 0) driftParticles();
 
     camera.position.x += (mouse.tx - camera.position.x) * 0.04;
     camera.position.y += (mouse.ty - camera.position.y) * 0.04;
@@ -334,20 +365,18 @@ function initDesktop() {
 }
 
 // ── HERO FADE ─────────────────────────────────────────────
+let lastHeroT = -1;
 function updateHero(p) {
   const fadeStart = 0.06;
   const fadeEnd   = 0.16;
-  if (p <= fadeStart) {
-    heroText.style.opacity   = '1';
-    heroText.style.transform = 'translateX(0)';
-  } else if (p >= fadeEnd) {
-    heroText.style.opacity   = '0';
-    heroText.style.transform = 'translateX(-30px)';
-  } else {
-    const t = (p - fadeStart) / (fadeEnd - fadeStart);
-    heroText.style.opacity   = String(1 - t);
-    heroText.style.transform = `translateX(${-30 * t}px)`;
-  }
+  let t;
+  if (p <= fadeStart)      t = 0;
+  else if (p >= fadeEnd)   t = 1;
+  else                     t = (p - fadeStart) / (fadeEnd - fadeStart);
+  if (Math.abs(t - lastHeroT) < 0.002) return; // no perceptible change → skip writes
+  lastHeroT = t;
+  heroText.style.opacity   = String(1 - t);
+  heroText.style.transform = `translateX(${-30 * t}px)`;
 }
 
 // ── ANNOTATIONS ───────────────────────────────────────────
@@ -383,10 +412,19 @@ function getBaseTransform(el) {
 }
 
 // ── PROGRESS TRACK ────────────────────────────────────────
+let lastProgressP = -1;
+const dotActiveState = new WeakMap();
 function updateProgress(p) {
-  progressFill.style.height = `${p * 100}%`;
+  if (Math.abs(p - lastProgressP) > 0.001) {
+    progressFill.style.transform = `scaleY(${p})`;
+    lastProgressP = p;
+  }
   stageDots.forEach(dot => {
-    dot.classList.toggle('active', p >= parseFloat(dot.dataset.pct));
+    const should = p >= parseFloat(dot.dataset.pct);
+    if (dotActiveState.get(dot) !== should) {
+      dot.classList.toggle('active', should);
+      dotActiveState.set(dot, should);
+    }
   });
 }
 
