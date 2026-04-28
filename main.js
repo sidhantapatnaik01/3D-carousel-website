@@ -387,7 +387,7 @@ function updateHero(p) {
   if (Math.abs(t - lastHeroT) < 0.002) return; // no perceptible change → skip writes
   lastHeroT = t;
   heroText.style.opacity   = String(1 - t);
-  heroText.style.transform = `translateX(${-30 * t}px)`;
+  heroText.style.transform = `translateY(-50%) translateX(${-30 * t}px)`;
 }
 
 // ── ANNOTATIONS ───────────────────────────────────────────
