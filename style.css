@@ -600,18 +600,6 @@ body {
     font-size: clamp(2.8rem, 10vw, 4rem);
   }
 
-  /* Hide desktop-only elements */
-  #progress-track,
-  #scanline,
-  #grain {
-    display: none;
-  }
-
-  /* Show mobile bar */
-  #mobile-stage-bar {
-    display: flex;
-  }
-
   /* Simplify annotations: only show 3 */
   .annotation.ann-top-left,
   .annotation.ann-top-right,
@@ -638,6 +626,19 @@ body {
   .annotation.ann-bottom-center {
     top: 140px;
     bottom: auto;
+  }
+}
+
+@media (max-width: 700px) {
+  /* Compact devices only — matches JS isCompact threshold */
+  #progress-track,
+  #scanline,
+  #grain {
+    display: none;
+  }
+
+  #mobile-stage-bar {
+    display: flex;
   }
 }
 
