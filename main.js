@@ -89,6 +89,31 @@ if (isMobile) {
   initDesktop();
 }
 
+// ── SHARED SCROLL-REVEAL (runs on BOTH mobile & desktop) ──
+// Must be outside initDesktop() — mobile path never called it, so
+// .svc-card and .gallery-card stayed opacity:0 forever on phones.
+(function initScrollReveal() {
+  const svcCards = document.querySelectorAll('.svc-card');
+  if (svcCards.length) {
+    const cardObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in-view'); cardObs.unobserve(e.target); }
+      });
+    }, { threshold: 0.08 });
+    svcCards.forEach(c => cardObs.observe(c));
+  }
+
+  const galleryCards = document.querySelectorAll('.gallery-card');
+  if (galleryCards.length) {
+    const galObs = new IntersectionObserver(entries => {
+      entries.forEach(e => {
+        if (e.isIntersecting) { e.target.classList.add('in-view'); galObs.unobserve(e.target); }
+      });
+    }, { threshold: 0.08 });
+    galleryCards.forEach(c => galObs.observe(c));
+  }
+})();
+
 // ═══════════════════════════════════════════════════════════
 // DESKTOP PATH
 // ═══════════════════════════════════════════════════════════
@@ -253,27 +278,8 @@ function initDesktop() {
     }, { threshold: 0.05 }).observe(servicesSection);
   }
 
-  // ── SERVICE CARD REVEAL (HTML grid section) ─────────────
-  const svcCards = document.querySelectorAll('.svc-card');
-  if (svcCards.length) {
-    const cardObs = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('in-view'); cardObs.unobserve(e.target); }
-      });
-    }, { threshold: 0.12 });
-    svcCards.forEach(c => cardObs.observe(c));
-  }
-
-  // ── GALLERY REVEAL ─────────────────────────────────────
-  const galleryCards = document.querySelectorAll('.gallery-card');
-  if (galleryCards.length) {
-    const galObs = new IntersectionObserver(entries => {
-      entries.forEach(e => {
-        if (e.isIntersecting) { e.target.classList.add('in-view'); galObs.unobserve(e.target); }
-      });
-    }, { threshold: 0.1 });
-    galleryCards.forEach(c => galObs.observe(c));
-  }
+  // NOTE: .svc-card and .gallery-card scroll-reveal observers live in
+  // the shared initScrollReveal() IIFE above — they run on both mobile & desktop.
 
   // ── MOUSE PARALLAX ──────────────────────────────────────
   const mouse = { tx: 0, ty: 0 };
