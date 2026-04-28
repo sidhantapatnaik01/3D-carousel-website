@@ -24,7 +24,10 @@ const frameCanvas   = document.getElementById('frame-canvas');
 const ctx           = frameCanvas.getContext('2d');
 
 // ── DEVICE DETECTION ─────────────────────────────────────
-const isMobile = window.matchMedia('(max-width: 700px)').matches;
+// Compact = phone-sized. We still run the full Three.js scene + carousel
+// + particles on compact devices, just with tuned constants for narrow viewports.
+const isCompact = window.matchMedia('(max-width: 700px)').matches;
+const isTouch   = window.matchMedia('(pointer: coarse)').matches;
 
 // ── CANVAS RESIZE ─────────────────────────────────────────
 function resizeFrameCanvas() {
@@ -101,11 +104,8 @@ function drawFrame(idx) {
 }
 
 // ── ROUTE ─────────────────────────────────────────────────
-if (isMobile) {
-  initMobile();
-} else {
-  initDesktop();
-}
+// Single unified path. The scene auto-tunes for compact viewports inside.
+initDesktop();
 
 // ── SHARED SCROLL-REVEAL (runs on BOTH mobile & desktop) ──
 // Must be outside initDesktop() — mobile path never called it, so
@@ -138,10 +138,18 @@ if (isMobile) {
 function initDesktop() {
   const canvasWrapper = document.getElementById('canvas-wrapper');
 
+  // ── COMPACT-MODE TUNING ─────────────────────────────────
+  // Phone viewports get a smaller orbit + fewer particles + closer camera so the
+  // carousel reads at 390px wide without crashing into the car.
+  const particleCount  = isCompact ? 800  : PARTICLE_COUNT;
+  const cardRadius     = isCompact ? 240  : CARD_RADIUS;
+  const orbitOffsetX   = isCompact ? 0    : 180;
+  const cameraZ        = isCompact ? 700  : 900;
+
   // ── THREE.JS SETUP ──────────────────────────────────────
   const scene  = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 1, 6000);
-  camera.position.set(0, 0, 900);
+  camera.position.set(0, 0, cameraZ);
 
   // WebGL renderer — particles only, transparent bg
   const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: false });
@@ -164,11 +172,11 @@ function initDesktop() {
   });
 
   // ── PARTICLES ───────────────────────────────────────────
-  const posArr = new Float32Array(PARTICLE_COUNT * 3);
-  const colArr = new Float32Array(PARTICLE_COUNT * 3);
-  const vel    = new Float32Array(PARTICLE_COUNT * 3);
+  const posArr = new Float32Array(particleCount * 3);
+  const colArr = new Float32Array(particleCount * 3);
+  const vel    = new Float32Array(particleCount * 3);
 
-  for (let i = 0; i < PARTICLE_COUNT; i++) {
+  for (let i = 0; i < particleCount; i++) {
     const theta = Math.random() * Math.PI * 2;
     const phi   = Math.acos(2 * Math.random() - 1);
     const r     = 320 + Math.random() * 480;
@@ -203,7 +211,7 @@ function initDesktop() {
   function driftParticles() {
     const pos = pGeo.attributes.position;
     const WRAP = 820;
-    for (let i = 0; i < PARTICLE_COUNT; i++) {
+    for (let i = 0; i < particleCount; i++) {
       pos.array[i*3]   += vel[i*3];
       pos.array[i*3+1] += vel[i*3+1];
       pos.array[i*3+2] += vel[i*3+2];
@@ -262,20 +270,19 @@ function initDesktop() {
   function updateCarousel(progress) {
     const env = scrollEnvelope(progress);
     const groupAngle = -progress * (Math.PI * 2 * (N - 1) / N);
-    const ORBIT_OFFSET_X = 180;
-    const ORBIT_OFFSET_Y = -20;
+    const ORBIT_OFFSET_Y = isCompact ? 60 : -20; // sit cards below car silhouette on phones
 
     cardObjects.forEach(({ obj, el }, i) => {
       const angle = (i / N) * Math.PI * 2 + groupAngle;
-      const x = ORBIT_OFFSET_X + CARD_RADIUS * Math.sin(angle);
-      const z = CARD_RADIUS * Math.cos(angle);
+      const x = orbitOffsetX + cardRadius * Math.sin(angle);
+      const z = cardRadius * Math.cos(angle);
       const y = ORBIT_OFFSET_Y + Math.sin(angle * 2) * 30;
 
       obj.position.set(x, y, z);
       obj.rotation.y = -angle;
 
-      const depth = (z + CARD_RADIUS) / (CARD_RADIUS * 2); // 0=back, 1=front
-      obj.scale.setScalar(0.36 + depth * 0.42);
+      const depth = (z + cardRadius) / (cardRadius * 2); // 0=back, 1=front
+      obj.scale.setScalar(isCompact ? 0.30 + depth * 0.36 : 0.36 + depth * 0.42);
 
       // Smooth crossfade — cards ease in/out instead of binary on/off
       const t = Math.max(0, Math.min(1, (depth - 0.55) / 0.40));
@@ -306,11 +313,14 @@ function initDesktop() {
   // the shared initScrollReveal() IIFE above — they run on both mobile & desktop.
 
   // ── MOUSE PARALLAX ──────────────────────────────────────
+  // No mouse on touch devices — skip the listener and leave camera centred.
   const mouse = { tx: 0, ty: 0 };
-  window.addEventListener('mousemove', e => {
-    mouse.tx = (e.clientX / innerWidth  - 0.5) * 90;
-    mouse.ty = -(e.clientY / innerHeight - 0.5) * 55;
-  });
+  if (!isTouch) {
+    window.addEventListener('mousemove', e => {
+      mouse.tx = (e.clientX / innerWidth  - 0.5) * 90;
+      mouse.ty = -(e.clientY / innerHeight - 0.5) * 55;
+    });
+  }
 
   // ── SMOOTH SCROLL STATE ──────────────────────────────────
   let smoothY = 0;
@@ -345,6 +355,7 @@ function initDesktop() {
       updateAnnotations(p);
       updateProgress(p);
       updateCarousel(p);
+      if (isCompact) updateMobilePills(p);
       lastSmoothY = smoothY;
     }
 
@@ -429,52 +440,9 @@ function updateProgress(p) {
 }
 
 // ═══════════════════════════════════════════════════════════
-// MOBILE PATH — auto-plays frames at ~15fps, no Three.js
+// MOBILE PILL BAR — driven by the unified tick() inside initDesktop()
 // ═══════════════════════════════════════════════════════════
 const MOBILE_STAGE_THRESHOLDS = [0.0, 0.22, 0.41, 0.60, 0.90];
-
-function initMobile() {
-  const canvasWrapper = document.getElementById('canvas-wrapper');
-  let smoothY = 0;
-  let lastDrawn = -1;
-  let lastSmooth = -1;
-  const M_LERP = 0.12;
-
-  function getMobileProgress() {
-    const driverH = scrollDriver.offsetHeight - window.innerHeight;
-    return driverH > 0 ? Math.min(Math.max(smoothY / driverH, 0), 1) : 0;
-  }
-
-  function mobileTick() {
-    smoothY += (window.scrollY - smoothY) * M_LERP;
-    const p = getMobileProgress();
-    const targetFrame = Math.round(p * (TOTAL_FRAMES - 1));
-
-    if (targetFrame !== lastDrawn) {
-      drawFrame(targetFrame);
-      lastDrawn = targetFrame;
-    }
-
-    if (Math.abs(smoothY - lastSmooth) > 0.1) {
-      updateHero(p);
-      updateAnnotations(p);
-      updateProgress(p);
-      updateMobilePills(p);
-      lastSmooth = smoothY;
-    }
-    requestAnimationFrame(mobileTick);
-  }
-  requestAnimationFrame(mobileTick);
-
-  const servicesSection = document.getElementById('services-section');
-  if (servicesSection && canvasWrapper) {
-    new IntersectionObserver(([entry]) => {
-      const opacity = entry.isIntersecting ? '0' : '1';
-      canvasWrapper.style.opacity    = opacity;
-      canvasWrapper.style.transition = 'opacity 0.6s ease';
-    }, { threshold: 0.05 }).observe(servicesSection);
-  }
-}
 
 function updateMobilePills(p) {
   let activeIdx = 0;
