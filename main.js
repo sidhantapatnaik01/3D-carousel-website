@@ -471,7 +471,7 @@ if (baSection && baHandle) {
 }
 
 // ── WHATSAPP FORM ─────────────────────────────────────────
-const WHATSAPP_NUMBER = '91XXXXXXXXXX'; // replace with real number e.g. '919876543210'
+const WHATSAPP_NUMBER = '919437000000'; // Replace with real Nabarangpur number
 
 const estimateForm = document.getElementById('estimate-form');
 if (estimateForm) {

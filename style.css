@@ -864,13 +864,16 @@ body {
   justify-content: center;
 }
 
-/* Placeholder backgrounds — replace with background-image for real photos */
 #ba-before {
-  background: radial-gradient(ellipse at 40% 60%, rgba(255,61,0,0.06) 0%, #0a0a0a 60%);
+  background-image: url('assets/ba-before.png');
+  background-size: cover;
+  background-position: center;
 }
 
 #ba-after {
-  background: radial-gradient(ellipse at 60% 40%, rgba(0,229,204,0.06) 0%, #111 60%);
+  background-image: url('assets/ba-after.png');
+  background-size: cover;
+  background-position: center;
   clip-path: inset(0 calc(100% - var(--ba-pos)) 0 0);
   transition: clip-path 0s; /* updated by JS on drag — no transition */
 }
@@ -1084,16 +1087,36 @@ body {
   position: absolute;
   top: 0; bottom: 0;
   width: 50%;
+  background-size: cover;
+  background-position: center;
 }
+
+/* Individual Gallery Images */
+.gallery-card[data-service="Dent Removal"] .gallery-before { background-image: url('assets/dent-before.png'); }
+.gallery-card[data-service="Dent Removal"] .gallery-after  { background-image: url('assets/dent-after.png'); }
+
+.gallery-card[data-service="Bumper Repair"] .gallery-before { background-image: url('assets/bumper-before.png'); }
+.gallery-card[data-service="Bumper Repair"] .gallery-after  { background-image: url('assets/bumper-after.png'); }
+
+.gallery-card[data-service="Panel Paint"] .gallery-before { background-image: url('assets/paint-before.png'); }
+.gallery-card[data-service="Panel Paint"] .gallery-after  { background-image: url('assets/paint-after.png'); }
+
+.gallery-card[data-service="Scratch Repair"] .gallery-before { background-image: url('assets/scratch-before.png'); }
+.gallery-card[data-service="Scratch Repair"] .gallery-after  { background-image: url('assets/scratch-after.png'); }
+
+.gallery-card[data-service="Accident Repair"] .gallery-before { background-image: url('assets/accident-before.png'); }
+/* Note: accident-after.png missing, using ba-after.png as fallback for now */
+.gallery-card[data-service="Accident Repair"] .gallery-after  { background-image: url('assets/ba-after.png'); }
+
+.gallery-card[data-service="Body Polish"] .gallery-before { background-image: url('assets/polish-before.png'); }
+.gallery-card[data-service="Body Polish"] .gallery-after  { background-image: url('assets/polish-after.png'); }
 
 .gallery-before {
   left: 0;
-  background: linear-gradient(135deg, #0f0f0f 0%, #1a0a0a 100%);
 }
 
 .gallery-after {
   right: 0;
-  background: linear-gradient(135deg, #0f1a1a 0%, #0e1e1e 100%);
 }
 
 /* Diagonal split between before/after */
@@ -1507,4 +1530,112 @@ a.contact-value:hover {
     flex-wrap: wrap;
     justify-content: center;
   }
+}
+
+/* ─────────────────────────────────────────────
+   FLOATING SOCIAL DOCK
+───────────────────────────────────────────── */
+#social-dock {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.social-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 14px;
+  border-radius: 50px;
+  text-decoration: none;
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  transition:
+    padding 0.3s cubic-bezier(0.16,1,0.3,1),
+    box-shadow 0.3s ease,
+    transform 0.25s cubic-bezier(0.16,1,0.3,1);
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+}
+
+.social-btn svg {
+  flex-shrink: 0;
+  transition: transform 0.25s ease;
+}
+
+.social-label {
+  font-size: 0.6rem;
+  letter-spacing: 0.16em;
+  overflow: hidden;
+  max-width: 0;
+  opacity: 0;
+  transition:
+    max-width 0.35s cubic-bezier(0.16,1,0.3,1),
+    opacity 0.25s ease;
+  font-family: var(--font-mono);
+}
+
+.social-btn:hover .social-label {
+  max-width: 120px;
+  opacity: 1;
+}
+
+.social-btn:hover svg {
+  transform: scale(1.1);
+}
+
+/* WhatsApp */
+#social-wa {
+  background: rgba(18, 28, 20, 0.88);
+}
+
+#social-wa:hover {
+  background: rgba(37, 211, 102, 0.15);
+  border-color: rgba(37, 211, 102, 0.35);
+  box-shadow: 0 0 24px rgba(37, 211, 102, 0.25), 0 4px 20px rgba(0,0,0,0.4);
+  transform: translateY(-2px) scale(1.03);
+  color: #25D366;
+}
+
+#social-wa::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50px;
+  border: 2px solid rgba(37, 211, 102, 0.5);
+  animation: wa-pulse 2.4s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes wa-pulse {
+  0%   { transform: scale(1);    opacity: 0.7; }
+  70%  { transform: scale(1.22); opacity: 0;   }
+  100% { transform: scale(1.22); opacity: 0;   }
+}
+
+/* Instagram */
+#social-ig {
+  background: rgba(20, 14, 26, 0.88);
+}
+
+#social-ig:hover {
+  background: rgba(193, 53, 132, 0.12);
+  border-color: rgba(193, 53, 132, 0.3);
+  box-shadow: 0 0 24px rgba(193, 53, 132, 0.2), 0 4px 20px rgba(0,0,0,0.4);
+  transform: translateY(-2px) scale(1.03);
+  color: #e1306c;
+}
+
+@media (max-width: 768px) {
+  #social-dock { bottom: 16px; right: 16px; gap: 10px; }
+  .social-btn  { padding: 10px 12px; }
 }
