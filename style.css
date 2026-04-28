@@ -1641,28 +1641,16 @@ a.contact-value:hover {
 }
 
 /* ─────────────────────────────────────────────
-   WATERMARK MASK
+   WATERMARK MASK — position/size set by JS initWmMask()
 ───────────────────────────────────────────── */
 #wm-mask {
   position: fixed;
-  /* Positioned over the KlingAI watermark baked into frame images */
+  background: #070707;
+  z-index: 9998;
+  pointer-events: none;
+  /* initial desktop fallback until JS runs */
   bottom: 0;
-  right: 108px;       /* sits left of the social dock buttons */
+  right: 108px;
   width: 230px;
   height: 42px;
-  background: #070707;
-  z-index: 9998;      /* above canvas, below social dock */
-  pointer-events: none;
-}
-
-@media (max-width: 768px) {
-  #wm-mask {
-    /* Full-width bottom strip on mobile — watermark position shifts
-       with canvas scaling, so cover everything left of the social dock */
-    left: 0;
-    right: 100px;   /* leaves room for the WA + IG icon buttons */
-    width: auto;
-    height: 48px;
-    bottom: 0;
-  }
 }
