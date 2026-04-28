@@ -1639,3 +1639,26 @@ a.contact-value:hover {
   #social-dock { bottom: 16px; right: 16px; gap: 10px; }
   .social-btn  { padding: 10px 12px; }
 }
+
+/* ─────────────────────────────────────────────
+   WATERMARK MASK
+───────────────────────────────────────────── */
+#wm-mask {
+  position: fixed;
+  /* Positioned over the KlingAI watermark baked into frame images */
+  bottom: 0;
+  right: 108px;       /* sits left of the social dock buttons */
+  width: 230px;
+  height: 42px;
+  background: #070707;
+  z-index: 9998;      /* above canvas, below social dock */
+  pointer-events: none;
+}
+
+@media (max-width: 768px) {
+  #wm-mask {
+    right: 88px;
+    width: 180px;
+    height: 36px;
+  }
+}
